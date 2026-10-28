@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+*.log
+# Nunca suba relatórios reais de ligações (têm telefones de clientes)
+*.csv
+*.txt
+*.xlsx
+!sample_data/*.csv
+!requirements.txt

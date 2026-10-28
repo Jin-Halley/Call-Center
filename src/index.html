@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central de Ligações</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: mesa de operação — faixa de arquivos no topo, placar de indicadores, ramais à esquerda + curva do dia à direita, livro de chamadas embaixo */
+:root{
+  --bg:#F2F4F3; --surface:#FFFFFF; --sunk:#E7ECEA; --line:#D3DBD8;
+  --ink:#16201E; --muted:#5B6B67; --accent:#0E6B66; --accent-ink:#FFFFFF; --signal:#C9822B;
+  --ok:#1F7A3E; --ok-bg:#E1F1E6; --bad:#B23A2E; --bad-bg:#F8E3E0; --bar:#9CC7C1;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",Consolas,"Courier New",monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1514; --surface:#16201E; --sunk:#1C2826; --line:#2A3835;
+  --ink:#E4ECEA; --muted:#93A6A1; --accent:#4DB6AC; --accent-ink:#0B1413; --signal:#E3A452;
+  --ok:#6CCB8A; --ok-bg:#173325; --bad:#F08A7D; --bad-bg:#3A1F1C; --bar:#2E6E67; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1514; --surface:#16201E; --sunk:#1C2826; --line:#2A3835;
+  --ink:#E4ECEA; --muted:#93A6A1; --accent:#4DB6AC; --accent-ink:#0B1413; --signal:#E3A452;
+  --ok:#6CCB8A; --ok-bg:#173325; --bad:#F08A7D; --bad-bg:#3A1F1C; --bar:#2E6E67; color-scheme:dark}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px;display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px}
+h1{font:700 34px/1 var(--f-display);letter-spacing:.01em;margin:0;text-transform:uppercase;text-wrap:balance}
+h1 small{display:block;font:500 13px/1.4 var(--f-body);letter-spacing:.04em;text-transform:none;color:var(--muted);margin-top:6px}
+h2{font:600 15px/1 var(--f-display);text-transform:uppercase;letter-spacing:.08em;margin:0;color:var(--muted)}
+button,.btn{font:600 14px var(--f-body);border-radius:var(--r);padding:9px 16px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,.drop:focus-visible{outline:3px solid var(--signal);outline-offset:2px}
+.drop{border:2px dashed var(--line);border-radius:var(--r);background:var(--surface);padding:22px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--accent);background:var(--sunk)}
+.drop p{margin:0;max-width:60ch}.drop b{font-family:var(--f-display);font-size:20px;letter-spacing:.02em}
+.files{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:500 12px var(--f-mono);background:var(--sunk);border:1px solid var(--line);border-radius:99px;padding:4px 10px;display:inline-flex;gap:8px;align-items:center}
+.chip button{border:0;background:none;padding:0 2px;font-size:14px;line-height:1;color:var(--muted)}
+.note{font-size:13px;color:var(--muted)}
+.err{background:var(--bad-bg);color:var(--bad);border-radius:var(--r);padding:10px 14px;font-size:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.kpi{background:var(--surface);padding:12px 14px}
+.kpi span{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.kpi strong{font:600 30px/1.15 var(--f-display);font-variant-numeric:tabular-nums}
+.kpi.ok strong{color:var(--ok)}.kpi.bad strong{color:var(--bad)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:18px}
+@media (max-width:820px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:grid;gap:10px;min-width:0;align-content:start}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font:600 11px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:default}
+th.sort{cursor:pointer}th.sort:hover{color:var(--accent)}
+td{padding:5px 8px;border-bottom:1px solid var(--sunk);white-space:nowrap;font-variant-numeric:tabular-nums}
+td.num,th.num{text-align:right}.mono{font-family:var(--f-mono);font-size:12.5px}
+tr.sel td{background:var(--sunk)}
+tbody tr.clk{cursor:pointer}tbody tr.clk:hover td{background:var(--sunk)}
+.pill{display:inline-block;font:600 11px var(--f-body);padding:1px 8px;border-radius:99px}
+.pill.s{background:var(--ok-bg);color:var(--ok)}.pill.n{background:var(--bad-bg);color:var(--bad)}
+.barcell{position:relative;min-width:90px}
+.barcell i{position:absolute;inset:6px auto 6px 0;background:var(--bar);border-radius:2px}
+.barcell em{position:relative;font-style:normal}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.filters label{display:grid;gap:3px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+input,select{font:14px var(--f-body);padding:7px 9px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--ink);min-width:0}
+#busca{width:200px}
+svg text{fill:var(--muted);font:11px var(--f-mono)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted)}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.exemplo{background:var(--signal);color:var(--accent-ink);font:600 11px var(--f-body);letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:99px}
+.more{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Central de Ligações<small>Junta os relatórios do PABX, tira as duplicadas e entrega o Excel formatado.</small></h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button id="btnExemplo" type="button">Ver exemplo</button>
+      <button id="btnNovo" type="button">Começar de novo</button>
+      <button id="btnExcel" class="primary" type="button" disabled>Baixar Excel</button>
+    </div>
+  </header>
+
+  <div id="drop" class="drop" tabindex="0" role="button" aria-label="Escolher arquivos">
+    <p><b>Solte aqui os arquivos de ligações</b><br>
+      <span class="note">Aceita .csv, .txt (bloco de notas) e .xlsx, vários de uma vez. Ligações repetidas entre arquivos entram uma vez só. Nada sai do seu computador.</span></p>
+    <button id="btnEscolher" type="button">Escolher arquivos</button>
+    <input id="fileIn" type="file" multiple accept=".csv,.txt,.xlsx" hidden>
+  </div>
+  <div id="files" class="files"></div>
+  <div id="erro" class="err" hidden></div>
+
+  <section id="painel" hidden style="display:grid;gap:18px">
+    <div class="kpis" id="kpis"></div>
+
+    <div class="filters">
+      <label>Ramal<select id="fRamal"></select></label>
+      <label>Tipo<select id="fSent"><option value="">Todos</option><option>Saída</option><option>Entrada</option><option>Intra BG</option></select></label>
+      <label>Atendida<select id="fAt"><option value="">Todas</option><option>Sim</option><option>Não</option></select></label>
+      <label>Data<select id="fData"></select></label>
+      <label>Buscar número<input id="busca" type="search" placeholder="ex.: 99391"></label>
+      <button id="btnLimpar" type="button">Limpar filtros</button>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h2>Por ramal</h2>
+        <div class="tbl"><table id="tRamal"></table></div>
+        <span class="note">Clique num ramal para filtrar.</span>
+      </div>
+      <div class="panel">
+        <div class="more"><h2>Ligações por hora</h2>
+          <div class="legend"><span><i style="background:var(--ok)"></i>Atendidas</span><span><i style="background:var(--bad)"></i>Não atendidas</span></div></div>
+        <div id="chart"></div>
+        <h2 style="margin-top:6px">Números mais chamados</h2>
+        <div class="tbl"><table id="tTop"></table></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="more"><h2 id="tituloLista">Chamadas</h2><span class="note" id="contaLista"></span></div>
+      <div class="tbl"><table id="tCham"></table></div>
+      <div class="more"><span class="note" id="paginaInfo"></span><button id="btnMais" type="button" hidden>Mostrar mais</button></div>
+    </div>
+  </section>
+</div>
+
+<!-- Biblioteca ExcelJS (lê e gera .xlsx), carregada por CDN. Para funcionar sem internet, baixe o exceljs.min.js e aponte o src para o arquivo local. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const state={files:[],calls:[],keys:new Set(),sort:{k:"ts",dir:1},limit:200,exemplo:false};
+
+/* ---------------- leitura ---------------- */
+const norm=s=>String(s??"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+function splitCSV(line,d){const out=[];let cur="",q=false;
+  for(let i=0;i<line.length;i++){const ch=line[i];
+    if(q){if(ch==='"'){if(line[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}
+    else if(ch==='"')q=true;else if(ch===d){out.push(cur);cur=""}else cur+=ch}
+  out.push(cur);return out.map(s=>s.trim())}
+function linhasDeTexto(txt){
+  const ls=txt.replace(/^﻿/,"").split(/\r?\n/).filter(l=>l.trim());
+  if(!ls.length)return[];
+  const d=[",",";","\t"].sort((a,b)=>ls[0].split(b).length-ls[0].split(a).length)[0];
+  return ls.map(l=>{let s=l.trim();
+    // formato do .txt: a linha inteira vem entre aspas com aspas dobradas dentro
+    if(s.length>1&&s[0]==='"'&&s.endsWith('"')&&s.includes('""')&&splitCSV(s,d).length<3)s=s.slice(1,-1).replace(/""/g,'"');
+    return splitCSV(s,d)})}
+async function lerTexto(file){const buf=await file.arrayBuffer();
+  let t=new TextDecoder("utf-8",{fatal:false}).decode(buf);
+  if(t.includes("�"))t=new TextDecoder("windows-1252").decode(buf);
+  return linhasDeTexto(t)}
+function valCel(v){if(v==null)return"";if(v instanceof Date)return v;if(typeof v==="object"){if("result"in v)return valCel(v.result);if(v.richText)return v.richText.map(r=>r.text).join("");if("text"in v)return v.text}return v}
+async function lerXlsx(file){const wb=new ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());
+  const ws=wb.worksheets.find(w=>w.name!=="Resumo")||wb.worksheets[0];const rows=[];
+  ws.eachRow({includeEmpty:false},r=>{const a=[];for(let c=1;c<=Math.max(r.cellCount,14);c++)a.push(valCel(r.getCell(c).value));rows.push(a)});return rows}
+
+const CAMPOS={data:["data"],hora:["hora"],tipo:["tipodechamada","tipooriginal","tipo"],num:["achamarnumero","numerodeorigem","origem"],ramal:["achamarramal","ramal"],
+  dest:["numerochamado","destino"],ramald:["ramalchamada","ramaldestino"],con:["chamadaconectada","atendida","conectada"],dur:["duracao"],esp:["tempodeenfileiramento","espera"]};
+const POS={data:0,hora:1,tipo:2,num:3,ramal:4,dest:6,ramald:7,con:9,dur:10,esp:11};
+function mapear(header){const h=header.map(norm),m={};
+  for(const[k,al]of Object.entries(CAMPOS)){let i=-1;for(const a of al){i=h.indexOf(a);if(i>=0)break}m[k]=i>=0?i:null}
+  if(m.data==null||m.hora==null)return null;for(const k in POS)if(m[k]==null&&k!=="ramald")m[k]=POS[k];return m}
+
+const SENT={"a originar":"Saída","a finalizar":"Entrada","intra bg":"Intra BG"};
+const dig=s=>String(s??"").replace(/\D/g,"");
+function tel(n){let d=dig(n);if(d.startsWith("55")&&d.length>=12)d=d.slice(2);
+  if(d.length===11)return`(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+  if(d.length===10)return`(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;return String(n??"")}
+function seg(v){if(v==null||v==="")return null;if(v instanceof Date)return v.getUTCHours()*3600+v.getUTCMinutes()*60+v.getUTCSeconds();
+  if(typeof v==="number")return v<1?Math.round(v*86400):Math.round(v);const p=String(v).split(":").map(Number);if(p.some(isNaN))return null;
+  while(p.length<3)p.unshift(0);return p[0]*3600+p[1]*60+p[2]}
+function data(v){if(v instanceof Date)return new Date(Date.UTC(v.getUTCFullYear(),v.getUTCMonth(),v.getUTCDate()));
+  if(typeof v==="number")return new Date(Date.UTC(1899,11,30)+Math.floor(v)*864e5);
+  const m=String(v).match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);if(m){let y=+m[3];if(y<100)y+=2000;return new Date(Date.UTC(y,m[2]-1,+m[1]))}
+  const i=String(v).match(/(\d{4})-(\d{2})-(\d{2})/);return i?new Date(Date.UTC(+i[1],i[2]-1,+i[3])):null}
+
+function normalizar(rows,nome){
+  let hi=rows.findIndex(r=>r.some(c=>norm(c)==="data")&&r.some(c=>norm(c)==="hora"));
+  let m=hi>=0?mapear(rows[hi]):{...POS};const corpo=hi>=0?rows.slice(hi+1):rows;
+  if(!m)throw new Error(`Não reconheci as colunas de "${nome}". O arquivo precisa ter Data e Hora.`);
+  const out=[];
+  for(const r of corpo){const d=data(r[m.data]);const h=seg(r[m.hora]);if(!d||h==null)continue;
+    const tipo=String(r[m.tipo]??"").trim();const rr=dig(r[m.ramal]),rd=m.ramald!=null?dig(r[m.ramald]):"";
+    const c={d,h,ts:d.getTime()/1000+h,tipoOrig:tipo,sent:SENT[tipo.toLowerCase()]||tipo||"—",
+      ramal:rr?+rr:(rd?+rd:null),orig:tel(r[m.num]),dest:tel(r[m.dest]),ramalDest:rd?+rd:null,
+      at:/^s/i.test(String(r[m.con]??"").trim())?"Sim":"Não",dur:seg(r[m.dur])??0,esp:seg(r[m.esp])};
+    const k=x=>{let d=dig(x);return d.startsWith("55")&&d.length>=12?d.slice(2):d};c.key=[c.ts,c.tipoOrig,k(r[m.num]),k(r[m.dest]),c.dur,c.at].join("|");out.push(c)}
+  if(!out.length)throw new Error(`"${nome}" não tem nenhuma ligação que eu consiga ler.`);
+  return out}
+
+async function adicionar(fileList){
+  if(state.exemplo)limpar();
+  const erros=[];
+  for(const f of fileList){
+    try{const ext=f.name.split(".").pop().toLowerCase();
+      if(ext==="xls")throw new Error(`"${f.name}" é .xls antigo. Abra no Excel e salve como .xlsx ou .csv.`);
+      const rows=ext==="xlsx"?await lerXlsx(f):await lerTexto(f);
+      const calls=normalizar(rows,f.name);let novos=0;
+      for(const c of calls)if(!state.keys.has(c.key)){state.keys.add(c.key);state.calls.push(c);novos++}
+      state.files.push({nome:f.name,lidas:calls.length,novos})}
+    catch(e){erros.push(e.message||String(e))}}
+  mostrarErro(erros.join("\n"));render()}
+function limpar(){state.files=[];state.calls=[];state.keys=new Set();state.exemplo=false;state.limit=200}
+function mostrarErro(t){const e=$("#erro");e.textContent=t;e.hidden=!t}
+
+/* ---------------- exemplo (dados inventados) ---------------- */
+function exemplo(){limpar();mostrarErro("");let s=7;const rnd=()=>((s=(s*9301+49297)%233280)/233280);
+  const ramais=[1001,1002,1003,1004,1005,1006],ddd=["11","19","15","16","13","18"];
+  const base=Date.UTC(2026,9,26);
+  for(let i=0;i<160;i++){const h=8*3600+Math.floor((rnd()**0.8)*10.5*3600);const ra=ramais[Math.floor(rnd()**1.4*ramais.length)];
+    const t=rnd()<.78?"A originar":(rnd()<.9?"Intra BG":"A finalizar");const at=t!=="Intra BG"&&rnd()<.68;
+    const dest="0"+ddd[Math.floor(rnd()*6)]+(rnd()<.5?"9":"3")+String(Math.floor(rnd()*1e8)).padStart(8,"0");
+    const c={d:new Date(base),h,ts:base/1000+h,tipoOrig:t,sent:SENT[t.toLowerCase()],ramal:ra,orig:tel("115550"+ra),dest:tel(dest.slice(1)),
+      ramalDest:t==="A finalizar"?1000:null,at:at?"Sim":"Não",dur:at?Math.floor(5+rnd()**2.2*400):Math.floor(1+rnd()*40),esp:at?Math.floor(1+rnd()*40):null};
+    c.key="ex"+i;state.calls.push(c)}
+  state.files=[{nome:"exemplo",lidas:160,novos:160}];state.exemplo=true;render()}
+
+/* ---------------- tela ---------------- */
+const hms=s=>s==null?"":`${Math.floor(s/3600)}:${String(Math.floor(s%3600/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+const dBR=d=>`${String(d.getUTCDate()).padStart(2,"0")}/${String(d.getUTCMonth()+1).padStart(2,"0")}/${d.getUTCFullYear()}`;
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct=(a,b)=>b?Math.round(a/b*1000)/10+"%":"—";
+
+function filtradas(){const r=$("#fRamal").value,se=$("#fSent").value,a=$("#fAt").value,dt=$("#fData").value,b=dig($("#busca").value);
+  return state.calls.filter(c=>(!r||String(c.ramal)===r)&&(!se||c.sent===se)&&(!a||c.at===a)&&(!dt||dBR(c.d)===dt)&&(!b||dig(c.dest).includes(b)||dig(c.orig).includes(b)))}
+
+function opcoes(sel,vals,todos){const v=sel.value;sel.innerHTML=`<option value="">${todos}</option>`+vals.map(x=>`<option>${esc(x)}</option>`).join("");if(vals.map(String).includes(v))sel.value=v}
+
+function render(){
+  const tem=state.calls.length>0;$("#painel").hidden=!tem;
+  $("#btnExcel").disabled=!tem;
+  $("#files").innerHTML=state.files.map((f,i)=>`<span class="chip">${state.exemplo?'<span class="exemplo">exemplo inventado</span>':""}${esc(f.nome)} · ${f.lidas} lidas${f.novos<f.lidas?` · ${f.lidas-f.novos} repetidas`:""}</span>`).join("")
+    +(state.files.length>1?`<span class="chip">Total: ${state.calls.length} ligações únicas</span>`:"");
+  if(!tem)return;
+  state.calls.sort((a,b)=>a.ts-b.ts);
+  opcoes($("#fRamal"),[...new Set(state.calls.map(c=>c.ramal).filter(x=>x!=null))].sort((a,b)=>a-b),"Todos");
+  opcoes($("#fData"),[...new Set(state.calls.map(c=>dBR(c.d)))],"Todas");
+  const L=filtradas();
+  const at=L.filter(c=>c.at==="Sim"),tot=L.reduce((s,c)=>s+c.dur,0);
+  const kp=[["Ligações",L.length,""],["Atendidas",at.length,"ok"],["Não atendidas",L.length-at.length,"bad"],["% atendidas",pct(at.length,L.length),""],
+    ["Tempo falado",hms(tot),""],["Média atendida",hms(at.length?Math.round(at.reduce((s,c)=>s+c.dur,0)/at.length):0),""],["Maior ligação",hms(Math.max(0,...L.map(c=>c.dur))),""]];
+  $("#kpis").innerHTML=kp.map(([l,v,c])=>`<div class="kpi ${c}"><span>${l}</span><strong>${v}</strong></div>`).join("");
+
+  // ramais
+  const por=new Map();for(const c of L){const k=c.ramal??"—";const o=por.get(k)||{n:0,s:0,t:0};o.n++;if(c.at==="Sim")o.s++;o.t+=c.dur;por.set(k,o)}
+  const rs=[...por.entries()].sort((a,b)=>b[1].n-a[1].n),mx=Math.max(1,...rs.map(r=>r[1].n)),sel=$("#fRamal").value;
+  $("#tRamal").innerHTML=`<thead><tr><th>Ramal</th><th>Ligações</th><th class="num">Atend.</th><th class="num">Não</th><th class="num">%</th><th class="num">Tempo</th></tr></thead><tbody>`+
+    rs.map(([k,o])=>`<tr class="clk${String(k)===sel?" sel":""}" data-ramal="${k}"><td class="mono"><b>${k}</b></td><td class="barcell"><i style="width:${o.n/mx*100}%"></i><em>${o.n}</em></td><td class="num">${o.s}</td><td class="num">${o.n-o.s}</td><td class="num">${pct(o.s,o.n)}</td><td class="num mono">${hms(o.t)}</td></tr>`).join("")+"</tbody>";
+
+  // grafico por hora
+  const hs={};for(const c of L){const h=Math.floor(c.h/3600);(hs[h]=hs[h]||{s:0,n:0})[c.at==="Sim"?"s":"n"]++}
+  const horas=Object.keys(hs).map(Number);const h0=Math.min(...horas),h1=Math.max(...horas);
+  const W=560,H=210,pl=30,pb=22,pt=10,n=h1-h0+1,bw=(W-pl-8)/n,top=Math.max(1,...horas.map(h=>hs[h].s+hs[h].n));
+  const passo=top<=10?2:top<=25?5:top<=60?10:20,ymax=Math.ceil(top/passo)*passo,y=v=>H-pb-(v/ymax)*(H-pb-pt);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Ligações por hora">`;
+  for(let v=0;v<=ymax;v+=passo)svg+=`<line x1="${pl}" x2="${W-4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`;
+  for(let h=h0;h<=h1;h++){const o=hs[h]||{s:0,n:0},x=pl+(h-h0)*bw+bw*.18,w=bw*.64;
+    svg+=`<rect x="${x}" y="${y(o.s)}" width="${w}" height="${H-pb-y(o.s)}" fill="var(--ok)"><title>${h}h: ${o.s} atendidas</title></rect>`;
+    svg+=`<rect x="${x}" y="${y(o.s+o.n)}" width="${w}" height="${y(o.s)-y(o.s+o.n)}" fill="var(--bad)"><title>${h}h: ${o.n} não atendidas</title></rect>`;
+    svg+=`<text x="${x+w/2}" y="${H-6}" text-anchor="middle">${String(h).padStart(2,"0")}h</text>`}
+  $("#chart").innerHTML=svg+"</svg>";
+
+  // top numeros
+  const tp=new Map();for(const c of L){if(c.sent==="Entrada")continue;const o=tp.get(c.dest)||{n:0,s:0,t:0};o.n++;if(c.at==="Sim")o.s++;o.t+=c.dur;tp.set(c.dest,o)}
+  const top5=[...tp.entries()].filter(e=>e[1].n>1).sort((a,b)=>b[1].n-a[1].n||b[1].t-a[1].t).slice(0,6);
+  $("#tTop").innerHTML=top5.length?`<thead><tr><th>Número</th><th class="num">Tentativas</th><th class="num">Atendidas</th><th class="num">Tempo</th></tr></thead><tbody>`+
+    top5.map(([k,o])=>`<tr class="clk" data-busca="${esc(dig(k))}"><td class="mono">${esc(k)}</td><td class="num">${o.n}</td><td class="num">${o.s}</td><td class="num mono">${hms(o.t)}</td></tr>`).join("")+"</tbody>"
+    :`<tbody><tr><td class="note">Nenhum número chamado mais de uma vez.</td></tr></tbody>`;
+
+  // lista
+  const {k,dir}=state.sort;const S=[...L].sort((a,b)=>(a[k]>b[k]?1:a[k]<b[k]?-1:a.ts-b.ts)*dir);
+  const cols=[["ts","Data/hora"],["sent","Tipo"],["ramal","Ramal"],["dest","Número chamado"],["orig","Origem"],["at","Atendida"],["dur","Duração"],["esp","Espera"]];
+  $("#tCham").innerHTML=`<thead><tr>${cols.map(([c,t])=>`<th class="sort${["dur","esp"].includes(c)?" num":""}" data-k="${c}" tabindex="0">${t}${k===c?(dir>0?" ▲":" ▼"):""}</th>`).join("")}</tr></thead><tbody>`+
+    S.slice(0,state.limit).map(c=>`<tr><td class="mono">${dBR(c.d)} ${hms(c.h).padStart(8,"0")}</td><td>${esc(c.sent)}</td><td class="mono">${c.ramal??""}</td><td class="mono">${esc(c.dest)}</td><td class="mono">${esc(c.orig)}</td><td><span class="pill ${c.at==="Sim"?"s":"n"}">${c.at}</span></td><td class="num mono">${hms(c.dur)}</td><td class="num mono">${hms(c.esp)}</td></tr>`).join("")+"</tbody>";
+  $("#contaLista").textContent=L.length===state.calls.length?`${L.length} ligações`:`${L.length} de ${state.calls.length} ligações (filtro ativo)`;
+  $("#paginaInfo").textContent=S.length>state.limit?`Mostrando ${state.limit} de ${S.length}`:"";
+  $("#btnMais").hidden=S.length<=state.limit;
+  $("#btnExcel").textContent=`Baixar Excel (${L.length})`;
+}
+
+/* ---------------- excel ---------------- */
+async function gerarExcel(){
+  const L=filtradas().sort((a,b)=>a.ts-b.ts);if(!L.length)return;
+  const wb=new ExcelJS.Workbook();wb.creator="Central de Ligações";
+  const NAVY="FF1F3864",BLUE="FF2E75B6",GREEN="FF1E7B3A",RED="FFB42318",G="FF6B7785",Z="FFF5F8FC";
+  const fill=c=>({type:"pattern",pattern:"solid",fgColor:{argb:c}});
+  const bd={top:{style:"thin",color:{argb:"FFD5DCE6"}},left:{style:"thin",color:{argb:"FFD5DCE6"}},bottom:{style:"thin",color:{argb:"FFD5DCE6"}},right:{style:"thin",color:{argb:"FFD5DCE6"}}};
+  const R=wb.addWorksheet("Resumo",{views:[{showGridLines:false}],pageSetup:{fitToPage:true,fitToWidth:1,fitToHeight:0}});
+  const C=wb.addWorksheet("Chamadas",{views:[{state:"frozen",ySplit:1,showGridLines:false}],pageSetup:{orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0}});
+  const n=L.length,last=n+1,rng=c=>`Chamadas!$${c}$2:$${c}$${last}`;
+  // Chamadas
+  const H=["Data","Hora","Tipo","Tipo original","Ramal","Número de origem","Número chamado","Ramal destino","Atendida","Duração","Espera","Duração (s)"];
+  C.columns=[12,10,11,13,8,19,19,13,10,10,9,11].map(w=>({width:w}));
+  const hr=C.getRow(1);H.forEach((h,i)=>{const c=hr.getCell(i+1);c.value=h;c.font={name:"Arial",bold:true,color:{argb:"FFFFFFFF"}};c.fill=fill(NAVY);c.alignment={horizontal:"center",vertical:"middle"};c.border=bd});hr.height=22;
+  L.forEach((x,i)=>{const r=C.getRow(i+2);
+    const v=[x.d,x.h/86400,x.sent,x.tipoOrig,x.ramal,x.orig,x.dest,x.ramalDest,x.at,x.dur/86400,x.esp==null?null:x.esp/86400];
+    v.forEach((val,j)=>{const c=r.getCell(j+1);c.value=val;c.font={name:"Arial",size:10};c.border=bd;c.alignment={horizontal:[5,6].includes(j)?"left":"center"};if(i%2)c.fill=fill(Z)});
+    r.getCell(1).numFmt="dd/mm/yyyy";r.getCell(2).numFmt="hh:mm:ss";r.getCell(10).numFmt="[h]:mm:ss";r.getCell(11).numFmt="[h]:mm:ss";
+    const s=r.getCell(12);s.value={formula:`IF(J${i+2}="","",ROUND(J${i+2}*86400,0))`,result:x.dur};s.font={name:"Arial",size:10,color:{argb:G}};s.border=bd;s.alignment={horizontal:"center"};if(i%2)s.fill=fill(Z)});
+  C.autoFilter={from:"A1",to:`L${last}`};
+  C.addConditionalFormatting({ref:`I2:I${last}`,rules:[
+    {type:"expression",formulae:['$I2="Sim"'],style:{font:{bold:true,color:{argb:GREEN}},fill:{type:"pattern",pattern:"solid",bgColor:{argb:"FFDFF3E4"}}}},
+    {type:"expression",formulae:['$I2="Não"'],style:{font:{bold:true,color:{argb:RED}},fill:{type:"pattern",pattern:"solid",bgColor:{argb:"FFFBE3E1"}}}}]});
+  C.addConditionalFormatting({ref:`J2:J${last}`,rules:[{type:"expression",formulae:["$J2>=TIME(0,5,0)"],style:{font:{bold:true,color:{argb:"FF8A5A00"}},fill:{type:"pattern",pattern:"solid",bgColor:{argb:"FFFFF1D6"}}}}]});
+
+  // Resumo
+  R.columns=[2,17,13,13,13,13,15,15,3,12,12,12].map(w=>({width:w}));
+  const datas=[...new Set(L.map(x=>dBR(x.d)))];
+  R.mergeCells("B1:L1");const t=R.getCell("B1");t.value=`RELATÓRIO DE LIGAÇÕES  •  ${datas[0]}${datas.length>1?" a "+datas[datas.length-1]:""}`;
+  t.font={name:"Arial",size:16,bold:true,color:{argb:"FFFFFFFF"}};t.fill=fill(NAVY);t.alignment={vertical:"middle",indent:1};R.getRow(1).height=34;
+  R.mergeCells("B2:L2");R.getCell("B2").value=`Arquivos: ${state.exemplo?"exemplo inventado":state.files.map(f=>f.nome).join(", ")}. Os números desta aba são fórmulas sobre a aba Chamadas.`;R.getCell("B2").font={name:"Arial",size:9,italic:true,color:{argb:G}};
+  const at=L.filter(x=>x.at==="Sim"),tot=L.reduce((s,x)=>s+x.dur,0);
+  const K=[["Ligações",`ROWS(${rng("A")})`,n,"0"],["Atendidas",`COUNTIF(${rng("I")},"Sim")`,at.length,"0"],["Não atendidas",`COUNTIF(${rng("I")},"Não")`,n-at.length,"0"],
+    ["% atendidas","IFERROR(C5/B5,0)",at.length/n,"0.0%"],["Tempo falado",`SUM(${rng("J")})`,tot/86400,"[h]:mm:ss"],
+    ["Média atendida",`IFERROR(AVERAGEIF(${rng("I")},"Sim",${rng("J")}),0)`,at.length?at.reduce((s,x)=>s+x.dur,0)/at.length/86400:0,"[h]:mm:ss"],
+    ["Maior ligação",`MAX(${rng("J")})`,Math.max(...L.map(x=>x.dur))/86400,"[h]:mm:ss"]];
+  K.forEach(([l,f,res,fmt],j)=>{const a=R.getRow(4).getCell(2+j),v=R.getRow(5).getCell(2+j);
+    a.value=l;a.font={name:"Arial",size:9,bold:true,color:{argb:G}};a.alignment={horizontal:"center"};a.fill=fill(Z);a.border=bd;
+    v.value={formula:f,result:res};v.numFmt=fmt;v.font={name:"Arial",size:15,bold:true,color:{argb:j===1?GREEN:j===2?RED:NAVY}};v.alignment={horizontal:"center",vertical:"middle"};v.fill=fill(Z);v.border=bd});
+  R.getRow(5).height=30;
+  const titulo=(cel,txt)=>{const c=R.getCell(cel);c.value=txt;c.font={name:"Arial",bold:true,size:11,color:{argb:NAVY}}};
+  const cab=(row,cols,start=2)=>{cols.forEach((h,k)=>{const c=R.getRow(row).getCell(start+k);c.value=h;c.font={name:"Arial",bold:true,size:10,color:{argb:"FFFFFFFF"}};c.fill=fill(BLUE);c.alignment={horizontal:"center",vertical:"middle",wrapText:true};c.border=bd});R.getRow(row).height=30};
+  const linha=(row,vals,fmts,i)=>vals.forEach((v,k)=>{const c=R.getRow(row).getCell(2+k);c.value=v;c.font={name:"Arial",size:10,bold:k===0};c.border=bd;c.alignment={horizontal:"center"};if(i%2)c.fill=fill(Z);if(fmts[k])c.numFmt=fmts[k]});
+  titulo("B7","POR RAMAL");cab(8,["Ramal","Ligações","Atendidas","Não atendidas","% atendidas","Tempo falado","Tempo médio (atendidas)"]);
+  const ramais=[...new Set(L.map(x=>x.ramal).filter(x=>x!=null))].sort((a,b)=>a-b);
+  ramais.forEach((ra,i)=>{const r=9+i,X=L.filter(x=>x.ramal===ra),S=X.filter(x=>x.at==="Sim");
+    linha(r,[ra,{formula:`COUNTIF(${rng("E")},B${r})`,result:X.length},{formula:`COUNTIFS(${rng("E")},B${r},${rng("I")},"Sim")`,result:S.length},{formula:`C${r}-D${r}`,result:X.length-S.length},
+      {formula:`IFERROR(D${r}/C${r},0)`,result:S.length/X.length},{formula:`SUMIF(${rng("E")},B${r},${rng("J")})`,result:X.reduce((s,x)=>s+x.dur,0)/86400},
+      {formula:`IFERROR(AVERAGEIFS(${rng("J")},${rng("E")},B${r},${rng("I")},"Sim"),0)`,result:S.length?S.reduce((s,x)=>s+x.dur,0)/S.length/86400:0}],
+      [null,null,null,null,"0%","[h]:mm:ss","[h]:mm:ss"],i)});
+  const rt=9+ramais.length;
+  [["TOTAL",null],[{formula:`SUM(C9:C${rt-1})`,result:n},"0"],[{formula:`SUM(D9:D${rt-1})`,result:at.length},"0"],[{formula:`SUM(E9:E${rt-1})`,result:n-at.length},"0"],
+   [{formula:`IFERROR(D${rt}/C${rt},0)`,result:at.length/n},"0%"],[{formula:`SUM(G9:G${rt-1})`,result:tot/86400},"[h]:mm:ss"],[{formula:"G5",result:K[5][2]},"[h]:mm:ss"]]
+   .forEach(([v,f],k)=>{const c=R.getRow(rt).getCell(2+k);c.value=v;if(f)c.numFmt=f;c.font={name:"Arial",bold:true,color:{argb:"FFFFFFFF"}};c.fill=fill(NAVY);c.alignment={horizontal:"center"};c.border=bd});
+  titulo("J7","POR TIPO");cab(8,["Tipo","Ligações","Atendidas"],10);
+  ["Saída","Entrada","Intra BG"].forEach((s,i)=>{const r=9+i,X=L.filter(x=>x.sent===s);
+    [s,{formula:`COUNTIF(${rng("C")},J${r})`,result:X.length},{formula:`COUNTIFS(${rng("C")},J${r},${rng("I")},"Sim")`,result:X.filter(x=>x.at==="Sim").length}]
+      .forEach((v,k)=>{const c=R.getRow(r).getCell(10+k);c.value=v;c.font={name:"Arial",size:10,bold:k===0};c.border=bd;c.alignment={horizontal:"center"}})});
+  const hs=rt+3;titulo(`B${hs-1}`,"POR HORA DO DIA");cab(hs,["Hora","Ligações","Atendidas","Não atendidas","Tempo falado"]);
+  const hh=L.map(x=>Math.floor(x.h/3600)),h0=Math.min(...hh),h1=Math.max(...hh);
+  for(let h=h0;h<=h1;h++){const r=hs+1+(h-h0),X=L.filter(x=>Math.floor(x.h/3600)===h),S=X.filter(x=>x.at==="Sim");
+    const cond=`${rng("B")},">="&TIME(${h},0,0),${rng("B")},"<"&TIME(${h+1},0,0)`;
+    linha(r,[`${String(h).padStart(2,"0")}h`,{formula:`COUNTIFS(${cond})`,result:X.length},{formula:`COUNTIFS(${cond},${rng("I")},"Sim")`,result:S.length},
+      {formula:`C${r}-D${r}`,result:X.length-S.length},{formula:`SUMIFS(${rng("J")},${cond})`,result:X.reduce((s,x)=>s+x.dur,0)/86400}],[null,null,null,null,"[h]:mm:ss"],h-h0)}
+  const he=hs+1+(h1-h0);
+  const tp=new Map();for(const x of L){if(x.sent==="Entrada")continue;tp.set(x.dest,(tp.get(x.dest)||0)+1)}
+  const top=[...tp.entries()].filter(e=>e[1]>1).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  if(top.length){const ts=he+3;titulo(`B${ts-1}`,"NÚMEROS MAIS CHAMADOS (2 vezes ou mais)");cab(ts,["Número","Tentativas","Atendidas","Tempo falado"]);
+    top.forEach(([num],i)=>{const r=ts+1+i,X=L.filter(x=>x.dest===num);
+      linha(r,[num,{formula:`COUNTIF(${rng("G")},B${r})`,result:X.length},{formula:`COUNTIFS(${rng("G")},B${r},${rng("I")},"Sim")`,result:X.filter(x=>x.at==="Sim").length},
+        {formula:`SUMIF(${rng("G")},B${r},${rng("J")})`,result:X.reduce((s,x)=>s+x.dur,0)/86400}],[null,null,null,"[h]:mm:ss"],i)})}
+  const buf=await wb.xlsx.writeBuffer();
+  const nome=`Ligacoes_${datas[0].replace(/\//g,"-")}${datas.length>1?"_a_"+datas[datas.length-1].replace(/\//g,"-"):""}.xlsx`;
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));a.download=nome;
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);
+}
+
+/* ---------------- eventos ---------------- */
+const drop=$("#drop"),inp=$("#fileIn");
+$("#btnEscolher").onclick=e=>{e.stopPropagation();inp.click()};
+drop.addEventListener("click",()=>inp.click());
+drop.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();inp.click()}});
+inp.onchange=()=>{adicionar([...inp.files]);inp.value=""};
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop",e=>adicionar([...e.dataTransfer.files]));
+document.addEventListener("dragover",e=>e.preventDefault());document.addEventListener("drop",e=>e.preventDefault());
+$("#files").onclick=e=>{const b=e.target.closest("[data-rm]");if(!b)return;const nome=state.files[+b.dataset.rm].nome;
+  mostrarErro(`Para tirar "${nome}", recarregue a página e solte os arquivos de novo.`)};
+$("#btnExemplo").onclick=exemplo;
+$("#btnNovo").onclick=()=>{limpar();mostrarErro("");["#fRamal","#fSent","#fAt","#fData"].forEach(x=>$(x).value="");$("#busca").value="";render()};
+$("#btnExcel").onclick=()=>gerarExcel().catch(e=>mostrarErro("Não consegui gerar o Excel: "+e.message));
+["#fRamal","#fSent","#fAt","#fData"].forEach(s=>$(s).onchange=()=>{state.limit=200;render()});
+$("#busca").oninput=()=>{state.limit=200;render()};
+$("#btnLimpar").onclick=()=>{["#fRamal","#fSent","#fAt","#fData"].forEach(s=>$(s).value="");$("#busca").value="";render()};
+$("#btnMais").onclick=()=>{state.limit+=300;render()};
+$("#tRamal").onclick=e=>{const tr=e.target.closest("[data-ramal]");if(!tr)return;const s=$("#fRamal");s.value=s.value===tr.dataset.ramal?"":tr.dataset.ramal;render()};
+$("#tTop").onclick=e=>{const tr=e.target.closest("[data-busca]");if(!tr)return;$("#busca").value=tr.dataset.busca;render()};
+const ordenar=e=>{const th=e.target.closest("th[data-k]");if(!th)return;const k=th.dataset.k;state.sort=state.sort.k===k?{k,dir:-state.sort.dir}:{k,dir:1};render()};
+$("#tCham").onclick=ordenar;$("#tCham").onkeydown=e=>{if(e.key==="Enter")ordenar(e)};
+if(typeof ExcelJS==="undefined")mostrarErro("O componente de Excel não carregou. Baixe o arquivo de novo.");
+exemplo();
+</script>
+
+</body>
+</html>
